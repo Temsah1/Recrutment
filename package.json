@@ -9,7 +9,7 @@
     "apps/*"
   ],
   "engines": {
-    "node": ">=20.11"
+    "node": "22.x"
   },
   "scripts": {
     "build": "npm run build -w @esme/shared && npm run build -w @esme/api && npm run build -w @esme/web",

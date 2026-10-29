@@ -1,4 +1,5 @@
 import fs from 'node:fs';
+import os from 'node:os';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import dotenv from 'dotenv';
@@ -101,9 +102,12 @@ export function loadConfig(overrides: Partial<AppConfig> = {}): AppConfig {
   const env: AppConfig['env'] =
     rawEnv === 'production' ? 'production' : rawEnv === 'test' ? 'test' : 'development';
   const isProduction = env === 'production';
+  const isVercel = Boolean(process.env.VERCEL);
 
   const dataDir = path.resolve(
-    overrides.dataDir ?? process.env.APP_DATA_DIR ?? path.join(repoRoot, 'var', 'app'),
+    overrides.dataDir ??
+      process.env.APP_DATA_DIR ??
+      (isVercel ? path.join(os.tmpdir(), 'esme-recruitment') : path.join(repoRoot, 'var', 'app')),
   );
   const databasePath = path.resolve(
     overrides.databasePath ??
@@ -118,16 +122,22 @@ export function loadConfig(overrides: Partial<AppConfig> = {}): AppConfig {
   const backupDir = path.resolve(
     overrides.backupDir ?? process.env.BACKUP_DIR ?? path.join(dataDir, 'backups'),
   );
+  const configuredMigrationsDir = overrides.migrationsDir ?? process.env.MIGRATIONS_DIR;
   const migrationsDir = path.resolve(
-    overrides.migrationsDir ??
-      process.env.MIGRATIONS_DIR ??
+    configuredMigrationsDir ??
+      [
+        path.join(repoRoot, 'database', 'migrations'),
+        path.join(process.cwd(), 'apps', 'api', 'dist', 'migrations'),
+        path.join(process.cwd(), 'dist', 'migrations'),
+      ].find((candidate) => fs.existsSync(candidate)) ??
       path.join(repoRoot, 'database', 'migrations'),
   );
 
+  const platformHost = process.env.VERCEL_PROJECT_PRODUCTION_URL ?? process.env.VERCEL_URL;
   const publicAppUrl = (
     overrides.publicAppUrl ??
     process.env.PUBLIC_APP_URL ??
-    'http://localhost:5173'
+    (platformHost ? `https://${platformHost}` : 'http://localhost:5173')
   ).replace(/\/+$/, '');
 
   if (!originOf(publicAppUrl)) {
@@ -207,7 +217,7 @@ export function loadConfig(overrides: Partial<AppConfig> = {}): AppConfig {
     recruitmentTimezone: process.env.RECRUITMENT_TIMEZONE ?? 'Africa/Cairo',
     cookieSameSite: sameSiteRaw as SameSiteOption,
     cookieSecure: overrides.cookieSecure ?? isProduction,
-    trustProxy: (process.env.TRUST_PROXY ?? 'false') === 'true',
+    trustProxy: (process.env.TRUST_PROXY ?? (isVercel ? 'true' : 'false')) === 'true',
     logLevel: process.env.LOG_LEVEL ?? (isProduction ? 'info' : 'debug'),
     ...overrides,
   };
@@ -215,6 +225,12 @@ export function loadConfig(overrides: Partial<AppConfig> = {}): AppConfig {
   if (!isProduction && !process.env.SESSION_SECRET) {
     process.emitWarning(
       'Using a development session secret. Set SESSION_SECRET before deploying.',
+    );
+  }
+  if (isVercel) {
+    process.emitWarning(
+      'Vercel uses an ephemeral filesystem: applications, uploads and administrator accounts ' +
+        'will not survive instance recycling. Use a persistent-disk host for production data.',
     );
   }
 

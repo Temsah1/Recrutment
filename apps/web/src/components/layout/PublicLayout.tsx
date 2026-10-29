@@ -1,7 +1,7 @@
 import { useEffect, useState, type ReactNode } from 'react';
 import { Link, Outlet, useLocation } from 'react-router-dom';
 import * as Dialog from '@radix-ui/react-dialog';
-import { ArrowRight, LockKeyhole, Menu, ShieldCheck, X } from 'lucide-react';
+import { ArrowRight, Menu, ShieldCheck, X } from 'lucide-react';
 import { en } from '@esme/shared';
 import { Logo } from '../brand/Logo';
 import { buttonStyles } from '../ui/Button';
@@ -64,14 +64,6 @@ function MobileMenu({ open, onClose }: { open: boolean; onClose: () => void }) {
             >
               {isOpen === false ? en.publicNav.applyClosed : en.publicNav.apply}
               <ArrowRight className="h-4 w-4" aria-hidden />
-            </Link>
-            <Link
-              to="/admin/login"
-              onClick={onClose}
-              className="flex items-center justify-center gap-2 py-2 text-xs font-medium text-muted transition hover:text-navy-900"
-            >
-              <LockKeyhole className="h-3.5 w-3.5" aria-hidden />
-              {en.publicNav.admin}
             </Link>
           </div>
         </Dialog.Content>
@@ -137,13 +129,6 @@ export function PublicLayout() {
               {en.publicNav.privacy}
             </Link>
             <Link
-              to="/admin/login"
-              className="hidden items-center gap-1.5 rounded-lg px-2.5 py-2 text-[13px] font-medium text-muted transition hover:text-navy-900 md:inline-flex"
-            >
-              <LockKeyhole className="h-3.5 w-3.5" aria-hidden />
-              {en.publicNav.admin}
-            </Link>
-            <Link
               to="/apply"
               className={buttonStyles({
                 variant: recruitmentOpen === false ? 'outline' : 'accent',
@@ -199,7 +184,7 @@ function PublicFooter() {
             </p>
           </div>
 
-          <div className="grid grid-cols-2 gap-8 sm:grid-cols-3 md:col-span-7">
+          <div className="grid grid-cols-2 gap-8 md:col-span-7">
             <FooterColumn title={landingCopy.footer.exploreTitle}>
               {sectionLinks.slice(0, 4).map((link) => (
                 <FooterLink key={link.href} to={`/${link.href}`}>
@@ -211,9 +196,6 @@ function PublicFooter() {
               <FooterLink to="/apply">{en.publicNav.apply}</FooterLink>
               <FooterLink to="/privacy">{en.publicNav.privacy}</FooterLink>
               <FooterLink to="/#faq">{en.publicNav.faq}</FooterLink>
-            </FooterColumn>
-            <FooterColumn title={landingCopy.footer.legalTitle}>
-              <FooterLink to="/admin/login">{landingCopy.footer.adminLabel}</FooterLink>
             </FooterColumn>
           </div>
         </div>

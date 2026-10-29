@@ -77,8 +77,6 @@ export const landingCopy = {
       'ESME Cairo University Student Chapter. A student organization for engineers, builders and problem-solvers.',
     exploreTitle: 'Explore',
     applyTitle: 'Recruitment',
-    legalTitle: 'Information',
-    adminLabel: 'Team login',
     rights: 'ESME Cairo University Student Chapter',
   },
   closed: {
