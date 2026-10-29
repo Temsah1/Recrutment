@@ -1,5 +1,5 @@
 import { URL } from 'node:url';
-import handler from '../apps/api/dist/serverless.js';
+import handler from '../dist/serverless.js';
 
 export default function bridge(request, response) {
   const url = new URL(request.url ?? '/', 'http://localhost');

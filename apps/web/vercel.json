@@ -1,18 +1,12 @@
 {
   "$schema": "https://openapi.vercel.sh/vercel.json",
-  "installCommand": "npm ci",
-  "buildCommand": "npm run build",
-  "outputDirectory": "apps/web/dist",
   "framework": "vite",
-  "functions": {
-    "api/*.js": {
-      "includeFiles": "apps/api/dist/**"
-    }
-  },
+  "buildCommand": "npm run build:shared --prefix ../.. && npm run build",
+  "outputDirectory": "dist",
   "rewrites": [
     {
-      "source": "/api/(.*)",
-      "destination": "/api?__original=$1"
+      "source": "/api/:path*",
+      "destination": "https://api-chi-wine-40.vercel.app/api/:path*"
     },
     {
       "source": "/(.*)",
