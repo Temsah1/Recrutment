@@ -1,0 +1,40 @@
+{
+  "name": "esme-recruitment-os",
+  "private": true,
+  "version": "1.0.0",
+  "description": "ESME Cairo University Student Chapter recruitment platform",
+  "type": "module",
+  "workspaces": [
+    "packages/*",
+    "apps/*"
+  ],
+  "engines": {
+    "node": ">=20.11"
+  },
+  "scripts": {
+    "build": "npm run build -w @esme/shared && npm run build -w @esme/api && npm run build -w @esme/web",
+    "build:shared": "npm run build -w @esme/shared",
+    "dev": "npm run build:shared && concurrently -n api,web -c blue,magenta \"npm:dev:api\" \"npm:dev:web\"",
+    "dev:api": "npm run dev -w @esme/api",
+    "dev:web": "npm run dev -w @esme/web",
+    "start": "npm run start -w @esme/api",
+    "typecheck": "npm run typecheck -w @esme/shared && npm run typecheck -w @esme/api && npm run typecheck -w @esme/web",
+    "lint": "eslint .",
+    "test": "npm run test -w @esme/shared && npm run test -w @esme/api && npm run test -w @esme/web",
+    "test:e2e": "playwright test",
+    "db:migrate": "npm run db:migrate -w @esme/api",
+    "admin:bootstrap": "npm run admin:bootstrap -w @esme/api",
+    "db:backup": "npm run db:backup -w @esme/api",
+    "db:restore": "npm run db:restore -w @esme/api",
+    "storage:verify": "npm run storage:verify -w @esme/api",
+    "seed:demo": "npm run seed:demo -w @esme/api"
+  },
+  "devDependencies": {
+    "@playwright/test": "^1.64.1",
+    "concurrently": "^9.1.2",
+    "eslint": "^9.18.0",
+    "sharp": "^0.35.5",
+    "typescript": "^5.7.3",
+    "typescript-eslint": "^8.20.0"
+  }
+}

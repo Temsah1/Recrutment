@@ -1,0 +1,35 @@
+node_modules/
+dist/
+.env
+.env.*
+!.env.example
+*.local
+
+# Private application data
+data/
+var/
+uploads/
+backups/
+*.db
+*.db-shm
+*.db-wal
+*.sqlite
+*.sqlite3
+
+# Logs and test artifacts
+logs/
+*.log
+coverage/
+test-results/
+playwright-report/
+blob-report/
+.vite/
+.eslintcache
+.bootstrap-token.tmp
+
+# OS / editor
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/*
+!.vscode/extensions.json
