@@ -1,0 +1,59 @@
+# syntax=docker/dockerfile:1.7
+
+# Build the API artifact. @esme/shared is bundled into dist/serverless.js and
+# dist/server.js, but the workspace package is still installed for CLI tools.
+FROM node:22-bookworm-slim AS build
+WORKDIR /app
+ENV NPM_CONFIG_FUND=false NPM_CONFIG_AUDIT=false
+
+COPY package.json package-lock.json ./
+COPY packages/shared/package.json packages/shared/
+COPY apps/api/package.json apps/api/
+COPY apps/web/package.json apps/web/
+RUN npm ci
+
+COPY tsconfig.json ./
+COPY packages/shared packages/shared
+COPY apps/api apps/api
+COPY database database
+RUN npm run build -w @esme/shared && npm run build -w @esme/api
+
+# Production dependencies only. The same base image is used as the runtime so
+# native modules (better-sqlite3, @node-rs/argon2) match the target libc.
+# Build tools are present here but are not copied into the runtime image.
+FROM node:22-bookworm-slim AS production-deps
+WORKDIR /app
+ENV NPM_CONFIG_FUND=false NPM_CONFIG_AUDIT=false
+RUN apt-get update \
+  && apt-get install -y --no-install-recommends python3 make g++ \
+  && rm -rf /var/lib/apt/lists/*
+
+COPY package.json package-lock.json ./
+COPY packages/shared/package.json packages/shared/
+COPY apps/api/package.json apps/api/
+COPY apps/web/package.json apps/web/
+RUN npm ci --omit=dev --workspaces --include-workspace-root
+
+FROM node:22-bookworm-slim AS runtime
+ENV NODE_ENV=production \
+    HOST=0.0.0.0 \
+    PORT=4000 \
+    APP_DATA_DIR=/data
+WORKDIR /app
+
+# Named volumes inherit ownership from the image directory on first use.
+RUN mkdir -p /data/db /data/uploads /data/backups /data/restore \
+  && chown -R node:node /data
+
+COPY --from=production-deps --chown=node:node /app/node_modules ./node_modules
+COPY --from=build --chown=node:node /app/apps/api/dist ./apps/api/dist
+COPY --from=build --chown=node:node /app/apps/api/package.json ./apps/api/package.json
+COPY --from=build --chown=node:node /app/packages/shared/package.json ./packages/shared/package.json
+COPY --from=build --chown=node:node /app/packages/shared/dist ./packages/shared/dist
+COPY --from=build --chown=node:node /app/package.json ./package.json
+
+USER node
+EXPOSE 4000
+
+# Migrations run automatically at startup (see apps/api/src/server.ts).
+CMD ["node", "apps/api/dist/server.js"]

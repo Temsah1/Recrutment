@@ -1,6 +1,6 @@
 # Deployment guide
 
-> **Current status: not deployed.** No production environment, DNS record or hosting platform has been touched. The application is **CONDITIONAL GO**: the code, tests and local build pass, but production readiness depends on the operator supplying a persistent-disk host, TLS, secrets and a verified backup routine. The API is **NO-GO on Vercel serverless** for the reasons in §9.
+> **Current status: not deployed.** No production environment, DNS record or hosting platform has been touched. The application is **CONDITIONAL GO**: the code, tests and local build pass, and a reproducible Docker Compose deployment is included in [`deploy/`](../deploy/README.md), but production readiness depends on the operator supplying a persistent-disk host, DNS, secrets and a verified backup routine. The API is **NO-GO on Vercel serverless** for the reasons in §9.
 
 ## 1. Supported topology
 
@@ -64,7 +64,6 @@ sudo chmod 700 /var/lib/esme/db /var/lib/esme/uploads /var/lib/esme/backups
 ```
 
 ## 3. Build and release
-
 On the build machine or CI:
 
 ```bash
@@ -90,6 +89,32 @@ Release procedure on the API host:
 6. If the release fails, restore the backup and the previous release; migrations are forward-only.
 
 CLIs in production can use the compiled entry points, e.g. `node apps/api/dist/cli/backup.js`, so they do not depend on `tsx` being installed. The root npm scripts use `tsx` from dev dependencies.
+
+### 3.1 Docker Compose (recommended for a VPS)
+
+The repository includes a complete container deployment in [`deploy/`](../deploy/README.md):
+
+- `deploy/Dockerfile.api` — multi-stage Node 22 build of the API. Runs as the non-root `node` user, mounts `/data`, and applies migrations at startup.
+- `deploy/Dockerfile.web` — builds `apps/web/dist` and serves it with Caddy 2.11.
+- `deploy/Caddyfile` — automatic TLS, SPA fallback (including `/admin`), `/api/*` proxy to `api:4000`, upload body limit, security headers.
+- `deploy/docker-compose.yml` — one API replica, a persistent `app_data` volume, Caddy certificate volumes and an API health check against `/api/v1/health`.
+- `deploy/.env.example` — variable names and placeholders only.
+
+Quick start on the server:
+
+```bash
+git clone https://github.com/Temsah1/Recrutment.git
+cd Recrutment/deploy
+cp .env.example .env && chmod 600 .env
+# edit APP_DOMAIN, PUBLIC_APP_URL, TRUSTED_ORIGINS and the two secrets
+docker compose build
+docker compose up -d
+curl -fsS https://apply.example.org/api/v1/health
+```
+
+The full runbook (bootstrap, backup/restore, upgrades, volume ownership, Vercel
+caveats) is in [`deploy/README.md`](../deploy/README.md). Do not deploy the API
+to Vercel functions; Vercel may host only the frontend.
 
 ## 4. First-run bootstrap
 
