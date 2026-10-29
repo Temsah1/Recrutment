@@ -12,7 +12,6 @@
     "node": "22.x"
   },
   "scripts": {
-    "postinstall": "npm run build:shared && npm run build -w @esme/api",
     "build": "npm run build -w @esme/shared && npm run build -w @esme/api && npm run build -w @esme/web",
     "build:shared": "npm run build -w @esme/shared",
     "dev": "npm run build:shared && concurrently -n api,web -c blue,magenta \"npm:dev:api\" \"npm:dev:web\"",
