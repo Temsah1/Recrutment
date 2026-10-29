@@ -17,6 +17,61 @@ Nothing here has been deployed to a host. A VPS, DNS record and secrets must be
 provided by the operator. Docker is required; this repository was verified
 without Docker, so the container build itself is unverified on this machine.
 
+## 0. If you do not have a VPS or a custom domain yet
+
+You cannot run this application on Vercel alone: Vercel functions have an
+ephemeral filesystem, so SQLite, uploaded documents and backups would be lost.
+You need **one small Linux host with a persistent disk** for the API. The
+frontend can stay on Vercel, but the API still needs that host.
+
+**Minimum host:** any Linux server (Ubuntu 24.04 is a good default) with a
+public IPv4 address, a persistent disk and Docker.
+
+| Resource | Floor | Recommended |
+| --- | --- | --- |
+| CPU | 1 vCPU | 2 vCPU |
+| RAM | 1 GB (+2 GB swap) | 2 GB |
+| Disk | 20 GB | 25 GB |
+| Network | inbound TCP 80/443, UDP 443 | same |
+
+The image build is the memory peak (it compiles `better-sqlite3` and bundles the
+SPA). On a 1 GB host add swap first, or build on a bigger machine and copy the
+images.
+
+**No custom domain?** Use a free wildcard-DNS hostname derived from the server's
+public IP, for example `sslip.io`:
+
+```text
+Public IP 203.0.113.10  ->  APP_DOMAIN=203.0.113.10.sslip.io
+                            PUBLIC_APP_URL=https://203.0.113.10.sslip.io
+                            TRUSTED_ORIGINS=https://203.0.113.10.sslip.io
+```
+
+Check that DNS resolves before starting Caddy:
+
+```bash
+dig +short 203.0.113.10.sslip.io   # must print 203.0.113.10
+```
+
+With ports 80/443 open, Caddy obtains a real Let's Encrypt certificate for that
+name, so HTTPS, secure cookies and CSRF origin checks work unchanged. This is a
+**temporary** hostname owned by a third party; move to a domain you control
+before storing real applicant data long-term. To migrate later, change
+`APP_DOMAIN`, `PUBLIC_APP_URL` and `TRUSTED_ORIGINS`, then
+`docker compose up -d web`; the data volume is untouched.
+
+Two supported layouts:
+
+- **All-in-one (simplest):** Caddy serves the frontend and API from this host.
+  Use `https://<hostname>` everywhere and skip Vercel.
+- **Vercel frontend + host API:** keep Vercel for the SPA, point its `/api/*`
+  rewrite at `https://<hostname>` (see `deploy/vercel/vercel.json.template`),
+  set `PUBLIC_APP_URL` to the Vercel production origin, and add every browser
+  origin you use to `TRUSTED_ORIGINS` (comma-separated, e.g.
+  `https://my-app.vercel.app,https://<hostname>`). The frontend must call the
+  API through the relative `/api/v1` base so the session cookie stays
+  first-party.
+
 ## 1. Prerequisites
 
 - A VPS with a persistent disk (2 vCPU / 2 GB RAM / 20 GB disk is enough to start).
@@ -188,4 +243,51 @@ in that case point its proxy at this stack's HTTPS origin (see
 Vercel production origin.
 
 The existing `apps/api/vercel.json` and `apps/api/api/index.js` are leftovers
-from an earlier experiment and are not part of this deployment path.
+from an earlier experiment and are not part of this deployment path. The
+frontend project's own `apps/web/vercel.json` now ships with the placeholder
+`https://REPLACE-WITH-YOUR-API-HOST`; replace it with your API origin before
+expecting `/api/*` calls to work.
+
+## 9. Copy/paste checklist
+
+Work top to bottom; each line is a real check, not a formality.
+
+- [ ] **Host** — public IPv4, persistent disk, Ubuntu 24.04, Docker 27+ with
+      Compose v2: `docker compose version`.
+- [ ] **Ports** — `sudo ufw allow 80,443/tcp && sudo ufw allow 443/udp`.
+- [ ] **Hostname** — real domain or temporary `<server-ip>.sslip.io`;
+      `dig +short <hostname>` returns the server IP.
+- [ ] **Clone** — `git clone https://github.com/Temsah1/Recrutment.git`,
+      then `cd Recrutment/deploy`.
+- [ ] **Secrets file** — `cp .env.example .env && chmod 600 .env`; set
+      `APP_DOMAIN`, `PUBLIC_APP_URL`, `TRUSTED_ORIGINS`; generate
+      `SESSION_SECRET` (≥32 chars) and `ADMIN_BOOTSTRAP_TOKEN` (≥24 chars).
+      Store both in a password manager, never in git.
+- [ ] **Build** — `docker compose build` (expect several minutes; watch for
+      `better-sqlite3` compile errors if build tools or RAM are missing).
+- [ ] **Start** — `docker compose up -d`, then `docker compose ps` shows `api`
+      as `healthy`. Never run `docker compose down -v`.
+- [ ] **Health** — `curl -fsS https://<hostname>/api/v1/health` returns
+      `{"status":"ok",...}`.
+- [ ] **Admin route** — opening `https://<hostname>/admin` returns the SPA
+      (HTTP 200) and the browser lands on `/admin/login`; a hard refresh still
+      works.
+- [ ] **First administrator** — run the bootstrap command in §5, then create the
+      day-to-day account with role **Admin** (not Super Admin) in the UI, with a
+      ≥12-character password.
+- [ ] **Application flow** — submit one test application; confirm it appears in
+      the admin list; confirm an anonymous request to a document URL returns
+      **401**, not the file.
+- [ ] **Backup** — run the backup CLI, verify storage, copy the archive
+      off-server, and prove a restore into a scratch directory (or a throwaway
+      server) before trusting it.
+- [ ] **Vercel (optional)** — replace the placeholder in the frontend rewrite
+      with `https://<hostname>`, add the Vercel origin to `TRUSTED_ORIGINS`,
+      redeploy, then repeat the login, upload and document-download checks
+      through the Vercel domain.
+
+Until the host actually exists, these remain **unverified**: the container image
+build, TLS issuance for your hostname, public-host login/session/CSRF behavior,
+and backup restoration on that host. The repository-side configuration is
+validated; the deployment is not.
+
